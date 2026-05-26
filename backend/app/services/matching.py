@@ -102,14 +102,34 @@ async def analyze_job(session: Session, embeddings: EmbeddingService, payload: A
 
 
 async def parse_structured_job(cleaned: str) -> StructuredJob:
+    deterministic = deterministic_extract(cleaned)
     client = OllamaClient()
     if await client.health() == "ok":
         try:
             data = await client.generate_json(load_prompt("extraction_prompt.txt"), {"job_text": cleaned})
-            return StructuredJob.model_validate(data)
+            return repair_structured_job(StructuredJob.model_validate(data), deterministic)
         except Exception:
             pass
-    return deterministic_extract(cleaned)
+    return deterministic
+
+
+def repair_structured_job(structured: StructuredJob, deterministic: StructuredJob) -> StructuredJob:
+    employer_side = [
+        "update you on",
+        "provide the tools",
+        "protect your time",
+        "listen actively",
+        "celebrate your wins",
+        "grant you the freedom",
+    ]
+    joined = " ".join(structured.responsibilities).lower()
+    if deterministic.responsibilities and (not structured.responsibilities or any(phrase in joined for phrase in employer_side)):
+        structured.responsibilities = deterministic.responsibilities
+    if not structured.hard_requirements and deterministic.hard_requirements:
+        structured.hard_requirements = deterministic.hard_requirements
+    if not structured.technologies and deterministic.technologies:
+        structured.technologies = deterministic.technologies
+    return structured
 
 
 def requirement_items(structured: StructuredJob) -> list[tuple[str, str]]:
@@ -142,6 +162,10 @@ def retrieve_evidence(
     return results
 
 
+def chunk_requirements(requirements: list[tuple[str, str]], size: int) -> list[list[tuple[str, str]]]:
+    return [requirements[index : index + size] for index in range(0, len(requirements), size)]
+
+
 async def compare_with_llm_or_fallback(
     structured: StructuredJob,
     evidence_by_requirement: dict[str, list[str]],
@@ -150,26 +174,54 @@ async def compare_with_llm_or_fallback(
 ) -> dict[str, Any]:
     prefs = get_or_create_preferences(session)
     client = OllamaClient()
-    payload = {
-        "structured_job": structured.model_dump(),
-        "requirements": [{"importance": kind, "requirement": req, "cv_chunks": evidence_by_requirement.get(req, [])} for kind, req in requirements],
-        "preferences": {
-            "target_roles": prefs.target_roles,
-            "locations": prefs.locations,
-            "seniority": prefs.seniority,
-            "tone": prefs.tone,
-            "skills_to_emphasize": prefs.skills_to_emphasize,
-            "avoid_claims_not_in_cv": prefs.avoid_claims_not_in_cv,
-        },
-    }
     if await client.health() == "ok":
-        try:
-            data = await client.generate_json(load_prompt("matching_prompt.txt"), payload)
-            if data.get("requirement_matches"):
-                return normalize_match_result(data)
-        except Exception:
-            pass
-    return fallback_match(requirements, evidence_by_requirement, include_warning=True)
+        matches: list[dict[str, Any]] = []
+        strengths: list[str] = []
+        gaps: list[str] = []
+        warnings: list[str] = []
+        prompt = load_prompt("matching_prompt.txt")
+        for batch in chunk_requirements(requirements, size=6):
+            payload = {
+                "structured_job": structured.model_dump(),
+                "requirements": [{"importance": kind, "requirement": req, "cv_chunks": evidence_by_requirement.get(req, [])} for kind, req in batch],
+                "preferences": {
+                    "target_roles": prefs.target_roles,
+                    "locations": prefs.locations,
+                    "seniority": prefs.seniority,
+                    "tone": prefs.tone,
+                    "skills_to_emphasize": prefs.skills_to_emphasize,
+                    "avoid_claims_not_in_cv": prefs.avoid_claims_not_in_cv,
+                },
+            }
+            try:
+                data = await client.generate_json(prompt, payload)
+                normalized = normalize_match_result(data, batch, evidence_by_requirement)
+            except Exception as exc:
+                normalized = fallback_match(
+                    batch,
+                    evidence_by_requirement,
+                    include_warning=True,
+                    fallback_reason=f"{type(exc).__name__}: {str(exc)[:180]}",
+                )
+            matches.extend(normalized["requirement_matches"])
+            strengths.extend(normalized["strengths"])
+            gaps.extend(normalized["gaps"])
+            warnings.extend(normalized["warnings"])
+        if matches:
+            return {
+                "summary": "Deep LLM analysis compared the job against visible CV evidence.",
+                "confidence": "medium",
+                "requirement_matches": matches,
+                "strengths": dedupe(strengths)[:12],
+                "gaps": dedupe(gaps)[:12],
+                "warnings": dedupe(warnings),
+            }
+    return fallback_match(
+        requirements,
+        evidence_by_requirement,
+        include_warning=True,
+        fallback_reason="Ollama is not reachable",
+    )
 
 
 async def generate_sections_or_fallback(
@@ -215,7 +267,12 @@ async def generate_sections_or_fallback(
     return bullets or fallback_bullets, generated
 
 
-def fallback_match(requirements: list[tuple[str, str]], evidence_by_requirement: dict[str, list[str]], include_warning: bool = True) -> dict[str, Any]:
+def fallback_match(
+    requirements: list[tuple[str, str]],
+    evidence_by_requirement: dict[str, list[str]],
+    include_warning: bool = True,
+    fallback_reason: str | None = None,
+) -> dict[str, Any]:
     matches: list[dict[str, Any]] = []
     strengths: list[str] = []
     gaps: list[str] = []
@@ -237,8 +294,14 @@ def fallback_match(requirements: list[tuple[str, str]], evidence_by_requirement:
         )
     score = compute_score([RequirementMatch.model_validate(item) for item in matches])
     fit_label = "strong" if score >= 75 else "moderate" if score >= 50 else "stretch"
-    summary = f"Quick local scan: this role looks like a {fit_label} fit based on the CV evidence I could match."
-    warnings = ["LLM comparison was unavailable; this report used deterministic local matching."] if include_warning else []
+    if include_warning:
+        summary = f"Fallback local scan: this role looks like a {fit_label} fit based on the CV evidence I could match."
+    else:
+        summary = f"Quick local scan: this role looks like a {fit_label} fit based on the CV evidence I could match."
+    warnings = []
+    if include_warning:
+        detail = f" Reason: {fallback_reason}" if fallback_reason else ""
+        warnings.append(f"Deep LLM comparison could not produce a valid structured match report, so deterministic local matching was used.{detail}")
     return {
         "summary": summary,
         "confidence": "medium" if matches else "low",
@@ -291,16 +354,105 @@ def lexical_status(requirement: str, evidence: list[str]) -> str:
 
 
 def normalize_tokens(text: str) -> list[str]:
+    text = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text)
     return [token for token in re.findall(r"[a-zA-Z][a-zA-Z0-9+.#-]{1,}", text.lower()) if len(token) > 2]
 
 
-def normalize_match_result(data: dict[str, Any]) -> dict[str, Any]:
-    data.setdefault("summary", "This role was compared against visible CV evidence.")
-    data.setdefault("confidence", "medium")
-    data.setdefault("strengths", [])
-    data.setdefault("gaps", [])
-    data.setdefault("warnings", [])
-    return data
+def normalize_match_result(
+    data: dict[str, Any],
+    requirements: list[tuple[str, str]],
+    evidence_by_requirement: dict[str, list[str]],
+) -> dict[str, Any]:
+    fallback = fallback_match(requirements, evidence_by_requirement, include_warning=False)
+    fallback_by_requirement = {item["requirement"]: item for item in fallback["requirement_matches"]}
+    known_importance = {requirement: importance for importance, requirement in requirements}
+    warnings = [str(item) for item in as_list(data.get("warnings"))]
+    matches: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for item in as_list(data.get("requirement_matches")):
+        if not isinstance(item, dict):
+            continue
+        requirement = str(item.get("requirement") or "").strip()
+        if not requirement:
+            continue
+        importance = coerce_importance(item.get("importance"), known_importance.get(requirement, "required"))
+        status = coerce_status(item.get("status"))
+        evidence = [str(value).strip() for value in as_list(item.get("cv_evidence")) if str(value).strip()]
+        explanation = str(item.get("explanation") or "").strip()
+        if not explanation:
+            explanation = "Compared by the local LLM against the retrieved CV evidence."
+        matches.append(
+            {
+                "requirement": requirement,
+                "importance": importance,
+                "status": status,
+                "cv_evidence": evidence[:4] if status != "missing" else [],
+                "explanation": explanation,
+            }
+        )
+        seen.add(requirement)
+
+    for _, requirement in requirements:
+        if requirement in seen:
+            continue
+        fallback_item = fallback_by_requirement.get(requirement)
+        if fallback_item:
+            matches.append(fallback_item)
+
+    if not matches:
+        raise ValueError("LLM returned no usable requirement_matches")
+    for item in matches:
+        RequirementMatch.model_validate(item)
+
+    omitted_count = max(0, len(requirements) - len(seen))
+    if omitted_count:
+        warnings.append(f"{omitted_count} requirement(s) were filled with local matching because the LLM omitted them.")
+    return {
+        "summary": str(data.get("summary") or "Deep LLM analysis compared the job against visible CV evidence.").strip(),
+        "confidence": coerce_confidence(data.get("confidence")),
+        "requirement_matches": matches,
+        "strengths": [str(item) for item in as_list(data.get("strengths"))][:12],
+        "gaps": [str(item) for item in as_list(data.get("gaps"))][:12],
+        "warnings": warnings,
+    }
+
+
+def as_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def coerce_importance(value: Any, default: str) -> str:
+    normalized = str(value or default).lower().replace("-", "_").replace(" ", "_")
+    if normalized in {"required", "hard", "hard_requirement", "hard_requirements", "must_have", "qualification"}:
+        return "required"
+    if normalized in {"nice", "nice_to_have", "preferred", "bonus"}:
+        return "nice_to_have"
+    if normalized in {"responsibility", "responsibilities", "task", "candidate_responsibility"}:
+        return "responsibility"
+    if normalized in {"technology", "technologies", "tool", "tools", "tech"}:
+        return "technology"
+    return "required"
+
+
+def coerce_status(value: Any) -> str:
+    normalized = str(value or "").lower().replace("-", "_").replace(" ", "_")
+    if normalized in {"strong", "match", "matched", "strong_match", "yes"}:
+        return "strong_match"
+    if normalized in {"partial", "partially_matched", "partial_match", "weak_match"}:
+        return "partial_match"
+    if normalized in {"missing", "not_visible", "absent", "no"}:
+        return "missing"
+    return "unclear"
+
+
+def coerce_confidence(value: Any) -> str:
+    normalized = str(value or "medium").lower()
+    return normalized if normalized in {"low", "medium", "high"} else "medium"
 
 
 def dedupe(values: list[str]) -> list[str]:

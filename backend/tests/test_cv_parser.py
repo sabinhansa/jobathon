@@ -9,6 +9,16 @@ def test_clean_text_collapses_spacing():
     assert clean_text("A   B\r\n\r\n\r\nC") == "A B\n\nC"
 
 
+def test_clean_text_repairs_character_spaced_pdf_lines():
+    text = "P y t h o n , C / C + + , J a v a\nM a c h i n e L e a r n i n g"
+    cleaned = clean_text(text)
+
+    assert "Python" in cleaned
+    assert "C/C++" in cleaned
+    assert "Java" in cleaned
+    assert "Machine Learning" in cleaned
+
+
 def test_chunk_cv_detects_sections():
     text = """
 SUMMARY
@@ -27,4 +37,3 @@ Built local-first AI tools.
     assert "Experience" in sections
     assert summarize_cv(text, chunks)["sections"]
     assert len(text_hash(text)) == 64
-

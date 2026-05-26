@@ -42,14 +42,42 @@ def load_prompt(name: str) -> str:
 
 def extract_json_object(text: str) -> dict[str, Any]:
     text = text.strip()
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.I | re.S).strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?", "", text).strip()
         text = re.sub(r"```$", "", text).strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, flags=re.S)
-        if not match:
+        candidate = first_json_object(text)
+        if candidate is None:
             raise
-        return json.loads(match.group(0))
+        return json.loads(candidate)
 
+
+def first_json_object(text: str) -> str | None:
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_string = False
+    escape = False
+    for index, char in enumerate(text[start:], start=start):
+        if escape:
+            escape = False
+            continue
+        if char == "\\" and in_string:
+            escape = True
+            continue
+        if char == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+    return None

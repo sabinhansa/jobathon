@@ -54,25 +54,53 @@ def _collect_sections(lines: list[str]) -> dict[str, list[str]]:
     current = "description"
     sections: dict[str, list[str]] = {}
     for line in lines:
-        lowered = line.lower()
-        if any(word in lowered for word in ["responsibilities", "what you will do", "role"]):
+        lowered = _normalize_heading(line)
+        if _is_heading(
+            lowered,
+            [
+                "our responsibilities",
+                "what we offer",
+                "our qualifications",
+                "who we are",
+                "what we do",
+                "what we value",
+                "what you embody",
+                "what it's really like to work with us",
+                "what it should really be like to work with you",
+                "we're not a good fit",
+                "no point in wasting time",
+            ],
+        ):
+            current = "description"
+            continue
+        if _is_heading(lowered, ["your responsibilities", "what you will do", "what youll do", "what you'll do"]):
             current = "responsibilities"
             continue
-        if any(word in lowered for word in ["requirements", "required", "must have"]):
+        if _is_heading(lowered, ["requirements", "required", "must have", "what we expect from you"]):
             current = "requirements"
             continue
-        if any(word in lowered for word in ["qualifications"]):
+        if _is_heading(lowered, ["your qualifications", "qualifications"]):
             current = "qualifications"
             continue
-        if any(word in lowered for word in ["nice to have", "preferred", "bonus"]):
+        if _is_heading(lowered, ["nice to have", "preferred", "bonus"]):
             current = "nice"
             continue
-        if any(word in lowered for word in ["benefits", "perks", "what we offer"]):
+        if _is_heading(lowered, ["benefits", "perks", "what we offer"]):
             current = "benefits"
             continue
         if current != "description" and 18 <= len(line) <= 260:
             sections.setdefault(current, []).append(line)
     return sections
+
+
+def _normalize_heading(line: str) -> str:
+    normalized = line.lower().replace("’", "'").replace("‘", "'")
+    normalized = re.sub(r"[^a-z0-9+' ]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _is_heading(line: str, phrases: list[str]) -> bool:
+    return any(line == phrase or line.startswith(f"{phrase} ") for phrase in phrases)
 
 
 def _find_first(text: str, patterns: list[str]) -> str | None:

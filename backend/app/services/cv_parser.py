@@ -48,7 +48,13 @@ def extract_text_from_bytes(filename: str, content: bytes) -> str:
 
 def _extract_pdf(content: bytes) -> str:
     reader = PdfReader(BytesIO(content))
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
+    pages: list[str] = []
+    for page in reader.pages:
+        try:
+            pages.append(page.extract_text(extraction_mode="layout") or "")
+        except TypeError:
+            pages.append(page.extract_text() or "")
+    return "\n".join(pages)
 
 
 def _extract_docx(content: bytes) -> str:
@@ -58,9 +64,26 @@ def _extract_docx(content: bytes) -> str:
 
 def clean_text(text: str) -> str:
     text = re.sub(r"\r", "\n", text)
+    text = "\n".join(_repair_spaced_pdf_line(line) for line in text.splitlines())
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _repair_spaced_pdf_line(line: str) -> str:
+    tokens = line.strip().split()
+    if len(tokens) < 8:
+        return line.strip()
+    single_char_tokens = sum(1 for token in tokens if len(token) == 1)
+    if single_char_tokens / len(tokens) < 0.65:
+        return line.strip()
+    joined = "".join(tokens)
+    joined = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", joined)
+    joined = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", joined)
+    joined = re.sub(r"(?<=[A-Za-z])(?=\d{2,})", " ", joined)
+    joined = re.sub(r"(?<=\d)(?=[A-Za-z])", " ", joined)
+    joined = joined.replace("|", " | ")
+    return joined
 
 
 def text_hash(text: str) -> str:
@@ -129,4 +152,3 @@ def summarize_cv(text: str, chunks: list[dict[str, str]]) -> dict:
         "sections": sorted({chunk["section"] for chunk in chunks}),
         "skills_preview": skills_chunk[:600],
     }
-

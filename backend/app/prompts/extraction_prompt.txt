@@ -9,6 +9,9 @@ Rules:
 - Use [] for unknown lists.
 - Preserve original wording for requirements when possible.
 - Distinguish required vs nice-to-have.
+- Only extract candidate-facing responsibilities, requirements, and qualifications.
+- Do not put employer promises from sections like "Our responsibilities", "What we offer", "Who we are", or "Our qualifications" into responsibilities or requirements.
+- Prefer sections titled "Your responsibilities", "What you'll do", "Your qualifications", and "What we expect from you" when deciding what the candidate must do.
 
 Schema:
 {
@@ -28,4 +31,3 @@ Schema:
   "red_flags": string[],
   "unclear_points": string[]
 }
-
