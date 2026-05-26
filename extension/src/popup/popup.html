@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jobathon</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p>Jobathon</p>
+          <h1>Match cockpit</h1>
+        </div>
+        <span id="status">...</span>
+      </header>
+
+      <nav>
+        <button data-tab="overview" class="active">Overview</button>
+        <button data-tab="requirements">Requirements</button>
+        <button data-tab="gaps">Gaps</button>
+        <button data-tab="fixes">CV Fixes</button>
+        <button data-tab="cover">Cover Letter</button>
+        <button data-tab="history">History</button>
+      </nav>
+
+      <section class="controls">
+        <select id="cvSelect"></select>
+        <textarea id="jobText" placeholder="Paste job description or extract visible page text."></textarea>
+        <div class="row">
+          <button id="extract">Extract visible page text</button>
+          <button id="dashboard">Open dashboard</button>
+        </div>
+        <button id="analyze" class="primary">Analyze Job</button>
+        <p id="message"></p>
+      </section>
+
+      <section class="scoreline">
+        <div id="score">--</div>
+        <p id="summary">No analysis yet.</p>
+      </section>
+
+      <section id="tabContent" class="tab-content"></section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
+
