@@ -17,7 +17,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin for origin in settings.cors_allow_origins if "*" not in origin],
+    allow_origins=[origin for origin in settings.cors_origins if "*" not in origin],
     allow_origin_regex=r"chrome-extension://.*",
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
@@ -41,4 +41,3 @@ app.include_router(preferences.router)
 app.include_router(jobs.router)
 app.include_router(analysis.router)
 app.mount("/app", StaticFiles(directory="app/static/app", html=True), name="dashboard")
-

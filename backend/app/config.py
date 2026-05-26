@@ -1,6 +1,5 @@
 from functools import lru_cache
 
-from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,21 +11,14 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://ollama:11434"
     local_llm_model: str = "qwen3:8b"
     embedding_model: str = "BAAI/bge-small-en-v1.5"
-    cors_allow_origins: list[str] = [
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "chrome-extension://*",
-    ]
+    cors_allow_origins: str = "http://localhost:8000,http://127.0.0.1:8000,chrome-extension://*"
     max_upload_mb: int = 10
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    @field_validator("cors_allow_origins", mode="before")
-    @classmethod
-    def split_origins(cls, value: str | list[str]) -> list[str]:
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        return value
+    @property
+    def cors_origins(self) -> list[str]:
+        return [item.strip() for item in self.cors_allow_origins.split(",") if item.strip()]
 
     @property
     def max_upload_bytes(self) -> int:
