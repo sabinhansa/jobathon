@@ -69,17 +69,18 @@ async function loadCvs() {
 
 async function analyze() {
   const cvId = $("cvSelect").value;
+  const mode = $("modeSelect").value;
   const jobText = $("jobText").value.trim();
   if (!cvId) return setMessage("Upload a CV first.");
   if (!jobText) return setMessage("Paste job description or extract visible page text.");
-  setMessage("Analyzing locally...");
+  setMessage(mode === "deep" ? "Running Deep LLM analysis..." : "Running quick local scan...");
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     result = await api.analyze({
       cv_id: cvId,
       job_text: jobText,
       job_url: tab?.url,
-      mode: "fast",
+      mode,
     });
     $("score").textContent = String(result.overall_score);
     $("summary").textContent = result.summary;
@@ -157,4 +158,3 @@ function escapeHtml(value) {
 }
 
 init();
-

@@ -97,9 +97,9 @@ $("analyzeButton").addEventListener("click", async () => {
     job_text: $("jobText").value,
     job_title: $("jobTitle").value || null,
     company: $("company").value || null,
-    mode: "fast",
+    mode: $("analysisMode").value,
   };
-  $("result").textContent = "Analyzing...";
+  $("result").textContent = payload.mode === "deep" ? "Running Deep LLM analysis..." : "Running quick local scan...";
   try {
     const result = await request("/analysis/analyze", {
       method: "POST",

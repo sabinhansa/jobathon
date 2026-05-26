@@ -27,6 +27,10 @@
 
       <section class="controls">
         <select id="cvSelect"></select>
+        <select id="modeSelect">
+          <option value="fast">Quick scan</option>
+          <option value="deep">Deep LLM</option>
+        </select>
         <textarea id="jobText" placeholder="Paste job description or extract visible page text."></textarea>
         <div class="row">
           <button id="extract">Extract visible page text</button>
@@ -46,4 +50,3 @@
     <script src="popup.js"></script>
   </body>
 </html>
-

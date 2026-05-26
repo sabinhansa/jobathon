@@ -16,6 +16,10 @@ function injectButton() {
         <button id="jathon-close" title="Close">x</button>
       </div>
       <select id="jathon-cv"></select>
+      <select id="jathon-mode">
+        <option value="fast">Quick scan</option>
+        <option value="deep">Deep LLM</option>
+      </select>
       <textarea id="jathon-text" placeholder="Paste job text or extract visible page text."></textarea>
       <div class="jathon-row">
         <button id="jathon-extract">Extract visible text</button>
@@ -61,6 +65,7 @@ function setupPanel(root: HTMLElement) {
   const close = root.querySelector<HTMLButtonElement>("#jathon-close")!;
   const text = root.querySelector<HTMLTextAreaElement>("#jathon-text")!;
   const cv = root.querySelector<HTMLSelectElement>("#jathon-cv")!;
+  const mode = root.querySelector<HTMLSelectElement>("#jathon-mode")!;
   const message = root.querySelector<HTMLElement>("#jathon-message")!;
   const resultBox = root.querySelector<HTMLElement>("#jathon-result")!;
   let latest: AnalysisResult | null = null;
@@ -85,13 +90,13 @@ function setupPanel(root: HTMLElement) {
   root.querySelector<HTMLButtonElement>("#jathon-analyze")!.addEventListener("click", async () => {
     if (!cv.value) return setMessage("Upload a CV first.");
     if (!text.value.trim()) return setMessage("Paste job description or extract visible page text.");
-    setMessage("Analyzing locally...");
+    setMessage(mode.value === "deep" ? "Running Deep LLM analysis..." : "Running quick local scan...");
     try {
       latest = await apiPost<AnalysisResult>("/analysis/analyze", {
         cv_id: cv.value,
         job_text: text.value,
         job_url: location.href,
-        mode: "fast",
+        mode: mode.value,
       });
       root.querySelector<HTMLElement>("#jathon-score")!.textContent = String(latest.overall_score);
       root.querySelector<HTMLElement>("#jathon-summary")!.textContent = latest.summary;

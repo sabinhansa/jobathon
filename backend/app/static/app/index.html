@@ -43,6 +43,10 @@
         </div>
         <input id="jobTitle" placeholder="Job title optional" />
         <input id="company" placeholder="Company optional" />
+        <select id="analysisMode">
+          <option value="fast">Quick scan - low memory</option>
+          <option value="deep">Deep LLM analysis</option>
+        </select>
         <textarea id="jobText" placeholder="Paste the job description here."></textarea>
         <button id="analyzeButton" type="button">Analyze Job</button>
       </section>
@@ -62,4 +66,3 @@
     <script src="/app/app.js"></script>
   </body>
 </html>
-

@@ -30,7 +30,7 @@ async def analyze_job(session: Session, embeddings: EmbeddingService, payload: A
     requirements = requirement_items(structured)
     evidence_by_requirement = retrieve_evidence(session, embeddings, cv.id, requirements)
     llm_result = (
-        fallback_match(requirements, evidence_by_requirement)
+        fallback_match(requirements, evidence_by_requirement, include_warning=False)
         if payload.mode == "fast"
         else await compare_with_llm_or_fallback(structured, evidence_by_requirement, requirements, session)
     )
@@ -169,7 +169,7 @@ async def compare_with_llm_or_fallback(
                 return normalize_match_result(data)
         except Exception:
             pass
-    return fallback_match(requirements, evidence_by_requirement)
+    return fallback_match(requirements, evidence_by_requirement, include_warning=True)
 
 
 async def generate_sections_or_fallback(
@@ -215,7 +215,7 @@ async def generate_sections_or_fallback(
     return bullets or fallback_bullets, generated
 
 
-def fallback_match(requirements: list[tuple[str, str]], evidence_by_requirement: dict[str, list[str]]) -> dict[str, Any]:
+def fallback_match(requirements: list[tuple[str, str]], evidence_by_requirement: dict[str, list[str]], include_warning: bool = True) -> dict[str, Any]:
     matches: list[dict[str, Any]] = []
     strengths: list[str] = []
     gaps: list[str] = []
@@ -236,14 +236,16 @@ def fallback_match(requirements: list[tuple[str, str]], evidence_by_requirement:
             }
         )
     score = compute_score([RequirementMatch.model_validate(item) for item in matches])
-    summary = f"This role looks like a {'strong' if score >= 75 else 'moderate' if score >= 50 else 'stretch'} fit based on visible CV evidence."
+    fit_label = "strong" if score >= 75 else "moderate" if score >= 50 else "stretch"
+    summary = f"Quick local scan: this role looks like a {fit_label} fit based on the CV evidence I could match."
+    warnings = ["LLM comparison was unavailable; this report used deterministic local matching."] if include_warning else []
     return {
         "summary": summary,
         "confidence": "medium" if matches else "low",
         "requirement_matches": matches,
         "strengths": strengths[:8],
         "gaps": gaps[:8],
-        "warnings": ["LLM comparison was unavailable; this report used deterministic local matching."],
+        "warnings": warnings,
     }
 
 
