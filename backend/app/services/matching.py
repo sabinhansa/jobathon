@@ -21,7 +21,7 @@ async def analyze_job(session: Session, embeddings: EmbeddingService, payload: A
         raise ValueError("CV not found")
 
     cleaned = clean_job_text(payload.job_text)
-    structured = await parse_structured_job(cleaned)
+    structured = deterministic_extract(cleaned) if payload.mode == "fast" else await parse_structured_job(cleaned)
     if payload.job_title:
         structured.title = payload.job_title
     if payload.company:
@@ -29,12 +29,20 @@ async def analyze_job(session: Session, embeddings: EmbeddingService, payload: A
 
     requirements = requirement_items(structured)
     evidence_by_requirement = retrieve_evidence(session, embeddings, cv.id, requirements)
-    llm_result = await compare_with_llm_or_fallback(structured, evidence_by_requirement, requirements, session)
+    llm_result = (
+        fallback_match(requirements, evidence_by_requirement)
+        if payload.mode == "fast"
+        else await compare_with_llm_or_fallback(structured, evidence_by_requirement, requirements, session)
+    )
     requirement_matches = [RequirementMatch.model_validate(item) for item in llm_result["requirement_matches"]]
     deterministic_score = compute_score(requirement_matches)
 
     evidence_flat = dedupe([snippet for snippets in evidence_by_requirement.values() for snippet in snippets])
-    cv_improvements, generated = await generate_sections_or_fallback(structured, evidence_flat, deterministic_score, llm_result, session)
+    if payload.mode == "fast":
+        cv_improvements = fallback_cv_improvements(evidence_flat, structured)
+        generated = fallback_generation(structured.company, structured.title, deterministic_score, llm_result["strengths"])
+    else:
+        cv_improvements, generated = await generate_sections_or_fallback(structured, evidence_flat, deterministic_score, llm_result, session)
 
     markdown = build_markdown_report(
         deterministic_score,
@@ -80,8 +88,16 @@ async def analyze_job(session: Session, embeddings: EmbeddingService, payload: A
         analysis_id=analysis.id,
         overall_score=analysis.final_score,
         confidence=analysis.confidence,  # type: ignore[arg-type]
+        summary=report_json["summary"],
+        requirement_matches=requirement_matches,
+        strengths=report_json["strengths"],
+        gaps=report_json["gaps"],
+        cv_improvements=cv_improvements,
+        cover_letter=report_json["cover_letter"],
+        recruiter_message=report_json["recruiter_message"],
+        interview_prep=report_json["interview_prep"],
+        warnings=report_json["warnings"],
         markdown_report=markdown,
-        **report_json,
     )
 
 
