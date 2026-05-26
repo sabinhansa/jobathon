@@ -1,0 +1,31 @@
+Purpose:
+Extract structured job data from raw job posting text.
+
+Rules:
+- Return valid JSON only.
+- Do not include markdown.
+- Do not invent missing fields.
+- Use null for unknown scalar values.
+- Use [] for unknown lists.
+- Preserve original wording for requirements when possible.
+- Distinguish required vs nice-to-have.
+
+Schema:
+{
+  "title": null|string,
+  "company": null|string,
+  "location": null|string,
+  "remote_policy": null|string,
+  "seniority": null|string,
+  "responsibilities": string[],
+  "hard_requirements": string[],
+  "nice_to_have_requirements": string[],
+  "technologies": string[],
+  "soft_skills": string[],
+  "education": string[],
+  "years_experience": null|string,
+  "benefits": string[],
+  "red_flags": string[],
+  "unclear_points": string[]
+}
+

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobFit GX</title>
+    <link rel="stylesheet" href="/app/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local-first match cockpit</p>
+          <h1>JobFit GX</h1>
+        </div>
+        <div id="health" class="status">Checking backend...</div>
+      </header>
+
+      <section class="grid">
+        <form id="cvForm" class="panel">
+          <h2>CV Vault</h2>
+          <input id="cvFile" name="upload" type="file" accept=".pdf,.docx,.txt,.md" />
+          <button type="submit">Upload CV</button>
+          <select id="cvSelect"></select>
+          <p id="cvStatus" class="muted"></p>
+        </form>
+
+        <form id="prefsForm" class="panel">
+          <h2>Preferences</h2>
+          <input id="targetRoles" placeholder="Target roles, comma separated" />
+          <input id="locations" placeholder="Preferred locations" />
+          <input id="seniority" placeholder="Seniority" />
+          <input id="tone" placeholder="Tone" value="confident, concise, practical" />
+          <button type="submit">Save Preferences</button>
+          <p id="prefsStatus" class="muted"></p>
+        </form>
+      </section>
+
+      <section class="panel analyze">
+        <div class="panel-head">
+          <h2>Analyze Job</h2>
+          <button id="refreshHistory" type="button">Refresh History</button>
+        </div>
+        <input id="jobTitle" placeholder="Job title optional" />
+        <input id="company" placeholder="Company optional" />
+        <textarea id="jobText" placeholder="Paste the job description here."></textarea>
+        <button id="analyzeButton" type="button">Analyze Job</button>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Result</h2>
+          <div id="score" class="score">--</div>
+          <pre id="result"></pre>
+        </article>
+        <article class="panel">
+          <h2>History</h2>
+          <div id="history" class="history"></div>
+        </article>
+      </section>
+    </main>
+    <script src="/app/app.js"></script>
+  </body>
+</html>
+

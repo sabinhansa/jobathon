@@ -1,0 +1,25 @@
+Purpose:
+Suggest improvements to the CV for this specific job.
+
+Rules:
+- Use only facts present in the CV evidence.
+- Do not fabricate numbers, clients, employers, degrees, certifications, or production impact.
+- If a stronger claim needs a metric, include "[add metric if true]".
+- Produce 5-10 suggested bullets.
+- Group by CV section if possible.
+- Keep bullets professional and ATS-friendly.
+
+Output JSON:
+{
+  "suggested_summary": string,
+  "suggested_bullets": [
+    {
+      "target_section": string,
+      "original_evidence": string,
+      "suggested_bullet": string,
+      "why_it_helps": string
+    }
+  ],
+  "keywords_to_add_if_true": string[]
+}
+

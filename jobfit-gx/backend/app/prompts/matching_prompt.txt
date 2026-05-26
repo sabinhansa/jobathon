@@ -1,0 +1,30 @@
+Purpose:
+Compare job requirements against CV evidence.
+
+Rules:
+- Use only the provided CV chunks as evidence.
+- Do not invent experience.
+- For each requirement, classify status: strong_match, partial_match, missing, unclear.
+- Quote or reference the relevant CV evidence briefly.
+- If evidence is absent, say "not visible in the CV."
+- Return strict JSON only.
+- Missing means missing from CV evidence, not necessarily missing from the user's real experience.
+
+Schema:
+{
+  "summary": string,
+  "confidence": "low"|"medium"|"high",
+  "requirement_matches": [
+    {
+      "requirement": string,
+      "importance": "required"|"nice_to_have"|"responsibility"|"technology",
+      "status": "strong_match"|"partial_match"|"missing"|"unclear",
+      "cv_evidence": string[],
+      "explanation": string
+    }
+  ],
+  "strengths": string[],
+  "gaps": string[],
+  "warnings": string[]
+}
+

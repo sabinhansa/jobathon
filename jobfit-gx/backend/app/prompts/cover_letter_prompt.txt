@@ -1,0 +1,18 @@
+Purpose:
+Generate a concise cover letter and recruiter message.
+
+Rules:
+- Do not exceed 250 words for cover letter.
+- Recruiter message max 700 characters.
+- Mention only true CV-backed experience.
+- Match the user's saved tone preference.
+- Do not sound desperate.
+- Do not overclaim.
+
+Output JSON:
+{
+  "cover_letter": string,
+  "recruiter_message": string,
+  "interview_talking_points": string[]
+}
+
