@@ -22,4 +22,4 @@ Permissions:
 - `storage`: stores local backend URL.
 - Host permissions are limited to localhost backend URLs.
 
-The content script injects a floating `JA` button on common job pages. It does not read page text until the user clicks extraction.
+The content script opens a compact right-side Jobathon drawer on common job pages and leaves a floating `JA` button for reopening it after closing. It does not read page text until the user clicks extraction.

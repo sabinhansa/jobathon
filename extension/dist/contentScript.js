@@ -102,6 +102,9 @@ function setupPanel(root) {
     });
   });
 
+  drawer.classList.add("open");
+  void loadCvs();
+
   async function loadCvs() {
     try {
       const cvs = await apiGet("/cvs");
@@ -190,14 +193,14 @@ const css = `
 }
 #jobathon-drawer {
   position: fixed;
-  top: 18px;
-  right: 18px;
-  bottom: 18px;
-  width: min(390px, calc(100vw - 28px));
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, calc(100vw - 28px));
   transform: translateX(calc(100% + 28px));
   transition: transform .18s ease;
   border: 1px solid #2c3042;
-  border-radius: 8px;
+  border-radius: 8px 0 0 8px;
   background: #090a12;
   color: #f4f7fb;
   box-shadow: 0 22px 70px rgba(0,0,0,.55);

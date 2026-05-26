@@ -14,7 +14,7 @@ It is designed for manual, explicit use while reading job posts. It does not mas
 - Compares job requirements against CV evidence.
 - Produces a match score, requirement table, strengths, gaps, CV bullet suggestions, cover letter draft, recruiter message draft, and interview prep bullets.
 - Saves analysis history locally.
-- Provides a browser popup and an injected floating drawer on common job pages.
+- Provides a browser popup and an injected right-side drawer that opens automatically on common job pages.
 
 ## Privacy
 
@@ -85,7 +85,7 @@ npm install
 npm run build
 ```
 
-The loadable extension is created in `extension/dist`.
+The loadable extension is created in `extension/dist`. A checked-in `extension/dist` bundle is also included, so you can load it immediately if you have not installed Node yet.
 
 ## Load in Opera GX or Chrome
 
